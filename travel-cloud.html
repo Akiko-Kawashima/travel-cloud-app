@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>旅行売上管理（クラウド版）</title>
+  <style>
+    :root{--bg:#0b0c10;--card:#121521;--line:#262b42;--text:#eef0f6;--muted:#9aa3b2;--ok:#3ddc97;--bad:#ff6b6b;--warn:#ffcc66;}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;background:rgba(11,12,16,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:14px 16px;z-index:2}
+    h1{margin:0;font-size:14px}
+    main{max-width:1100px;margin:0 auto;padding:16px}
+    .grid{display:grid;gap:12px}
+    @media(min-width:980px){.grid{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+    label{display:block;font-size:11px;color:var(--muted);margin:8px 0 6px}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1220;color:var(--text);outline:none}
+    textarea{min-height:70px;resize:vertical}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .field{flex:1;min-width:160px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    button{cursor:pointer;border:1px solid var(--line);background:#151a2a;color:var(--text);padding:10px 12px;border-radius:10px;font-weight:700}
+    button:hover{background:#1c2240}
+    button.primary{border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.12)}
+    button.danger{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12)}
+    .tag{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#0f1220;color:var(--muted);font-size:11px}
+    .tag.ok{color:var(--ok);border-color:rgba(61,220,151,.35)}
+    .tag.warn{color:var(--warn);border-color:rgba(255,204,102,.35)}
+    .tag.bad{color:var(--bad);border-color:rgba(255,107,107,.35)}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px;vertical-align:top}
+    th{color:var(--muted);text-align:left}
+    tr:hover td{background:rgba(122,162,255,.06)}
+    .right{text-align:right}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .toast{position:fixed;right:12px;bottom:12px;max-width:520px;background:#0f1220;border:1px solid var(--line);padding:10px 12px;border-radius:12px;display:none}
+    .toast.show{display:block}
+  </style>
+</head>
+<body>
+<header>
+  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+    <h1>旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</h1>
+    <div class="row" style="gap:8px;align-items:center">
+      <span class="tag" id="who">未ログイン</span>
+      <span class="tag" id="roleTag">role: -</span>
+      <button id="btnLogout" style="display:none">ログアウト</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="loginCard">
+    <h2 style="margin:0 0 10px;font-size:14px">ログイン</h2>
+    <div class="row">
+      <div class="field">
+        <label>メール</label>
+        <input id="email" type="email" placeholder="staff@example.com" />
+      </div>
+      <div class="field">
+        <label>パスワード</label>
+        <input id="password" type="password" placeholder="********" />
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnSignIn">ログイン</button>
+      <button id="btnSignUp">新規登録</button>
+    </div>
+    <p style="color:var(--muted);font-size:12px;line-height:1.6;margin:10px 0 0">
+      ※ スタッフは「新規登録」→ログインでOK。<br>
+      ※ 管理者付与は、あなたが Supabase の members.role を staff→admin に変更した時だけ。
+    </p>
+  </section>
+
+  <div class="grid" id="appGrid" style="display:none">
+    <section class="card">
+      <h2 style="margin:0 0 10px;font-size:14px">入力（請求書）</h2>
+
+      <div class="row">
+        <div class="field">
+          <label>請求書番号（必須）</label>
+          <input id="inv_no" placeholder="例：FR-2026-001" />
+        </div>
+        <div class="field">
+          <label>ステータス</label>
+          <select id="status">
+            <option>見積中</option>
+            <option selected>請求済</option>
+            <option>一部入金</option>
+            <option>入金済</option>
+            <option>取消</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>請求日</label>
+          <input id="bill_date" type="date" />
+        </div>
+        <div class="field">
+          <label>実施日</label>
+          <input id="service_date" type="date" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>取引先</label>
+          <input id="client" placeholder="例：〇〇 Travel" />
+        </div>
+        <div class="field">
+          <label>案件名</label>
+          <input id="project" placeholder="例：Nagasaki Private Tour" />
+        </div>
+        <div class="field">
+          <label>PAX</label>
+          <input id="pax" type="number" min="0" step="1" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label>売上（税込）</label><input id="revenue" type="number" min="0" step="1" /></div>
+        <div class="field"><label>入金額</label><input id="paid" type="number" min="0" step="1" /></div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label>バス代</label><input id="cost_bus" type="number" min="0" step="1" /></div>
+        <div class="field"><label>ガイド代</label><input id="cost_guide" type="number" min="0" step="1" /></div>
+        <div class="field"><label>食事代</label><input id="cost_meal" type="number" min="0" step="1" /></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>入場料・体験</label><input id="cost_entry" type="number" min="0" step="1" /></div>
+        <div class="field"><label>外注/手配</label><input id="cost_outsource" type="number" min="0" step="1" /></div>
+        <div class="field"><label>その他原価</label><input id="cost_other" type="number" min="0" step="1" /></div>
+      </div>
+
+      <label>原価メモ</label>
+      <textarea id="cost_memo" placeholder="支払先や内訳メモ"></textarea>
+
+      <div class="row" style="margin-top:10px;align-items:center">
+        <span class="tag" id="t_cost">原価合計：¥0</span>
+        <span class="tag" id="t_profit">粗利：¥0</span>
+        <span class="tag" id="t_unpaid">未回収：¥0</span>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="btnSave">保存（追加/更新）</button>
+        <button id="btnClear">クリア</button>
+        <button class="danger" id="btnDelete" disabled>削除（adminのみ）</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin:0 0 10px;font-size:14px">一覧</h2>
+      <div class="row" style="align-items:center">
+        <span class="tag" id="count">0件</span>
+        <span class="tag" id="sum">売上 ¥0 / 粗利 ¥0 / 未回収 ¥0</span>
+        <button id="btnReload">更新</button>
+      </div>
+
+      <div style="overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:10px">
+        <table>
+          <thead>
+            <tr>
+              <th>請求書番号</th><th>ステータス</th><th>請求日</th><th>取引先</th><th>案件名</th>
+              <th class="right">売上</th><th class="right">原価</th><th class="right">粗利</th><th class="right">入金</th><th class="right">未回収</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <p style="color:var(--muted);font-size:12px;line-height:1.6;margin:10px 0 0">
+        行をクリックすると編集できます。削除は admin のみ。
+      </p>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // =========================
+  // 0) SET YOUR KEYS HERE
+  // =========================
+  const SUPABASE_URL = "https://yuhjerjsfcpwyzeogvmk.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aGplcmpzZmNwd3l6ZW9ndm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzkyMDQsImV4cCI6MjA4NjM1NTIwNH0.ukahtsFqwuXrG_Ywp9SC6kNWQbGYTUROeDicZQIEglI";
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const $ = (id)=>document.getElementById(id);
+  const toast = (msg)=>{ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove('show'),2200); };
+
+  const yen = (n)=>'¥'+Number(n||0).toLocaleString('ja-JP');
+  const num = (v)=>{ const n=Number(v); return isFinite(n)?n:0; };
+
+  let sessionUser = null;
+  let myRole = 'staff';
+  let selectedId = null;
+
+  function calcTags(){
+    const revenue = num($('revenue').value);
+    const paid = num($('paid').value);
+    const cost = num($('cost_bus').value)+num($('cost_guide').value)+num($('cost_meal').value)+num($('cost_entry').value)+num($('cost_outsource').value)+num($('cost_other').value);
+    const profit = revenue - cost;
+    const unpaid = revenue - paid;
+
+    $('t_cost').textContent = '原価合計：'+yen(cost);
+    $('t_profit').textContent = '粗利：'+yen(profit);
+    $('t_unpaid').textContent = '未回収：'+yen(unpaid);
+
+    $('t_profit').className = 'tag ' + (profit<0?'bad':(profit>0?'ok':''));
+    $('t_unpaid').className = 'tag ' + (unpaid>0?'warn':'ok');
+  }
+
+  ['revenue','paid','cost_bus','cost_guide','cost_meal','cost_entry','cost_outsource','cost_other'].forEach(id=>{
+    $(id).addEventListener('input', calcTags);
+  });
+
+  function clearForm(){
+    selectedId = null;
+    $('inv_no').value='';
+    $('status').value='請求済';
+    $('bill_date').value='';
+    $('service_date').value='';
+    $('client').value='';
+    $('project').value='';
+    $('pax').value='';
+    $('revenue').value='';
+    $('paid').value='';
+    $('cost_bus').value='';
+    $('cost_guide').value='';
+    $('cost_meal').value='';
+    $('cost_entry').value='';
+    $('cost_outsource').value='';
+    $('cost_other').value='';
+    $('cost_memo').value='';
+    $('btnDelete').disabled = true;
+    calcTags();
+  }
+
+  async function refreshRole(){
+    myRole = 'staff';
+    if(!sessionUser) return;
+
+    const { data, error } = await supabase
+      .from('members')
+      .select('role,email')
+      .eq('user_id', sessionUser.id)
+      .maybeSingle();
+
+    if(error){
+      // members_read_self があるので基本は取れる
+      console.warn(error);
+    }
+    if(data && data.role) myRole = data.role;
+
+    $('roleTag').textContent = 'role: ' + myRole;
+    $('roleTag').className = 'tag ' + (myRole==='admin' ? 'ok' : '');
+    $('btnDelete').textContent = myRole==='admin' ? '削除（admin）' : '削除（adminのみ）';
+  }
+
+  function setLoggedInUI(on){
+    $('loginCard').style.display = on ? 'none' : 'block';
+    $('appGrid').style.display = on ? 'grid' : 'none';
+    $('btnLogout').style.display = on ? 'inline-block' : 'none';
+  }
+
+  async function loadInvoices(){
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .order('bill_date', { ascending:false })
+      .limit(200);
+
+    if(error){ toast('一覧取得エラー：'+error.message); return; }
+
+    const tbody = $('tbody');
+    tbody.innerHTML='';
+
+    let sumRev=0, sumCost=0, sumProfit=0, sumUnpaid=0;
+
+    data.forEach(r=>{
+      const cost = num(r.cost_bus)+num(r.cost_guide)+num(r.cost_meal)+num(r.cost_entry)+num(r.cost_outsource)+num(r.cost_other);
+      const profit = num(r.revenue)-cost;
+      const unpaid = num(r.revenue)-num(r.paid);
+
+      sumRev += num(r.revenue);
+      sumCost += cost;
+      sumProfit += profit;
+      sumUnpaid += Math.max(0,unpaid);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(r.inv_no)}</td>
+        <td>${escapeHtml(r.status||'')}</td>
+        <td>${escapeHtml(r.bill_date||'')}</td>
+        <td>${escapeHtml(r.client||'')}</td>
+        <td>${escapeHtml(r.project||'')}</td>
+        <td class="right">${yen(r.revenue)}</td>
+        <td class="right">${yen(cost)}</td>
+        <td class="right">${yen(profit)}</td>
+        <td class="right">${yen(r.paid)}</td>
+        <td class="right">${yen(Math.max(0,unpaid))}</td>
+      `;
+      tr.addEventListener('click', ()=>fillForm(r));
+      tbody.appendChild(tr);
+    });
+
+    $('count').textContent = data.length+'件';
+    $('sum').textContent = `売上 ${yen(sumRev)} / 粗利 ${yen(sumProfit)} / 未回収 ${yen(sumUnpaid)}`;
+  }
+
+  function escapeHtml(s){ return String(s??'').replace(/[&<>\"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+  function fillForm(r){
+    selectedId = r.id;
+    $('inv_no').value = r.inv_no||'';
+    $('status').value = r.status||'請求済';
+    $('bill_date').value = r.bill_date||'';
+    $('service_date').value = r.service_date||'';
+    $('client').value = r.client||'';
+    $('project').value = r.project||'';
+    $('pax').value = r.pax ?? '';
+    $('revenue').value = r.revenue ?? '';
+    $('paid').value = r.paid ?? '';
+    $('cost_bus').value = r.cost_bus ?? '';
+    $('cost_guide').value = r.cost_guide ?? '';
+    $('cost_meal').value = r.cost_meal ?? '';
+    $('cost_entry').value = r.cost_entry ?? '';
+    $('cost_outsource').value = r.cost_outsource ?? '';
+    $('cost_other').value = r.cost_other ?? '';
+    $('cost_memo').value = r.cost_memo ?? '';
+
+    $('btnDelete').disabled = (myRole!=='admin');
+    calcTags();
+    toast('編集：'+r.inv_no);
+  }
+
+  async function upsertInvoice(){
+    const inv_no = $('inv_no').value.trim();
+    if(!inv_no){ toast('請求書番号を入れてね'); return; }
+
+    const payload = {
+      inv_no,
+      status: $('status').value,
+      bill_date: $('bill_date').value || null,
+      service_date: $('service_date').value || null,
+      client: $('client').value.trim(),
+      project: $('project').value.trim(),
+      pax: num($('pax').value),
+      revenue: num($('revenue').value),
+      paid: num($('paid').value),
+      cost_bus: num($('cost_bus').value),
+      cost_guide: num($('cost_guide').value),
+      cost_meal: num($('cost_meal').value),
+      cost_entry: num($('cost_entry').value),
+      cost_outsource: num($('cost_outsource').value),
+      cost_other: num($('cost_other').value),
+      cost_memo: $('cost_memo').value
+    };
+
+    // unique(inv_no) なので upsert が楽
+    const { error } = await supabase
+      .from('invoices')
+      .upsert(payload, { onConflict:'inv_no' });
+
+    if(error){ toast('保存エラー：'+error.message); return; }
+
+    toast('保存しました');
+    await loadInvoices();
+    clearForm();
+  }
+
+  async function deleteInvoice(){
+    if(myRole!=='admin'){ toast('削除はadminのみ'); return; }
+    if(!selectedId){ toast('削除対象が未選択'); return; }
+    if(!confirm('削除しますか？')) return;
+
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', selectedId);
+
+    if(error){ toast('削除エラー：'+error.message); return; }
+
+    toast('削除しました');
+    await loadInvoices();
+    clearForm();
+  }
+
+  // =========================
+  // Auth
+  // =========================
+  async function signUp(){
+    const email = $('email').value.trim();
+    const password = $('password').value;
+    const { error } = await supabase.auth.signUp({ email, password });
+    if(error){ toast('登録エラー：'+error.message); return; }
+    toast('登録OK。ログインしてください');
+  }
+
+  async function signIn(){
+    const email = $('email').value.trim();
+    const password = $('password').value;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error){ toast('ログインエラー：'+error.message); return; }
+    sessionUser = data.user;
+    $('who').textContent = sessionUser.email;
+    $('who').className = 'tag ok';
+    setLoggedInUI(true);
+    await refreshRole();
+    await loadInvoices();
+    clearForm();
+  }
+
+  async function logout(){
+    await supabase.auth.signOut();
+    sessionUser = null;
+    myRole = 'staff';
+    $('who').textContent = '未ログイン';
+    $('who').className = 'tag';
+    $('roleTag').textContent = 'role: -';
+    $('roleTag').className = 'tag';
+    setLoggedInUI(false);
+    clearForm();
+  }
+
+  // Restore session
+  (async ()=>{
+    const { data } = await supabase.auth.getSession();
+    if(data.session){
+      sessionUser = data.session.user;
+      $('who').textContent = sessionUser.email;
+      $('who').className = 'tag ok';
+      setLoggedInUI(true);
+      await refreshRole();
+      await loadInvoices();
+      clearForm();
+    } else {
+      setLoggedInUI(false);
+    }
+  })();
+
+  // Buttons
+  $('btnSignUp').addEventListener('click', signUp);
+  $('btnSignIn').addEventListener('click', signIn);
+  $('btnLogout').addEventListener('click', logout);
+
+  $('btnSave').addEventListener('click', upsertInvoice);
+  $('btnClear').addEventListener('click', ()=>{ clearForm(); toast('クリア'); });
+  $('btnDelete').addEventListener('click', deleteInvoice);
+  $('btnReload').addEventListener('click', loadInvoices);
+</script>
+</body>
+</html>
