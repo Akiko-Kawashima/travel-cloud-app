@@ -4,407 +4,364 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</title>
+
   <style>
     :root{
-      --bg:#0b0c10;
-      --card:#121521;
-      --line:#262b42;
-      --text:#eef0f6;
-      --muted:#9aa3b2;
-      --ok:#3ddc97;
-      --bad:#ff6b6b;
-      --warn:#ffcc66;
+      --bg:#0b0c10; --card:#121521; --line:#262b42; --text:#eef0f6;
+      --muted:#9aa3b2; --ok:#3ddc97; --bad:#ff6b6b; --warn:#ffcc66;
+      --shadow: 0 16px 60px rgba(0,0,0,.45);
     }
-    *{box-sizing:border-box}
+    html,body{height:100%}
     body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
-      color:var(--text);
-      background: radial-gradient(1200px 600px at 20% 0%, rgba(61,220,151,.12), transparent 55%),
-                  radial-gradient(900px 600px at 80% 10%, rgba(255,204,102,.10), transparent 50%),
-                  var(--bg);
-      min-height:100vh;
-    }
-    header{
-      padding:18px 18px 0 18px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-    }
-    .title{
-      font-weight:700;
+      margin:0; background: radial-gradient(1200px 700px at 20% 0%, rgba(61,220,151,.18), transparent 55%),
+                radial-gradient(900px 600px at 80% 10%, rgba(255,204,102,.12), transparent 55%),
+                var(--bg);
+      color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
       letter-spacing:.2px;
-      font-size:22px;
     }
-    .tags{display:flex; gap:10px; align-items:center;}
+    .wrap{max-width:1100px; margin:0 auto; padding:28px 18px 40px}
+    h1{font-size:28px; margin:4px 0 18px}
+    .topbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px}
+    .pill{display:inline-flex; gap:10px; align-items:center}
     .tag{
-      padding:8px 12px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      color:var(--muted);
-      background:rgba(18,21,33,.6);
-      font-size:13px;
+      padding:8px 12px; border:1px solid var(--line); border-radius:999px;
+      background: rgba(18,21,33,.55); color:var(--muted); font-size:13px;
     }
-    .tag.ok{color:var(--ok); border-color:rgba(61,220,151,.4)}
-    .tag.bad{color:var(--bad); border-color:rgba(255,107,107,.4)}
-    .wrap{
-      padding:18px;
-      display:flex;
-      justify-content:center;
-    }
-    .panel{
-      width:min(980px, 100%);
-      border:1px solid var(--line);
-      background:rgba(18,21,33,.72);
-      box-shadow: 0 24px 80px rgba(0,0,0,.35);
-      border-radius:18px;
-      padding:18px;
-    }
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:14px;
-    }
-    @media (max-width:800px){
-      .grid{grid-template-columns:1fr}
-    }
+    .tag.ok{border-color: rgba(61,220,151,.35); color: var(--ok)}
+    .tag.bad{border-color: rgba(255,107,107,.45); color: var(--bad)}
+    .grid{display:grid; grid-template-columns: 1.05fr .95fr; gap:16px}
+    @media (max-width: 920px){ .grid{grid-template-columns:1fr} }
     .card{
-      border:1px solid var(--line);
-      background:rgba(11,12,16,.35);
-      border-radius:16px;
-      padding:16px;
+      background: linear-gradient(180deg, rgba(18,21,33,.92), rgba(18,21,33,.68));
+      border:1px solid var(--line); border-radius:18px; padding:18px;
+      box-shadow: var(--shadow); backdrop-filter: blur(10px);
     }
-    h2{
-      margin:0 0 12px;
-      font-size:18px;
-    }
-    label{
-      display:block;
-      font-size:12px;
-      color:var(--muted);
-      margin-bottom:6px;
-    }
+    .card h2{margin:0 0 10px; font-size:18px}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .field{margin:10px 0}
+    label{display:block; font-size:12px; color:var(--muted); margin:0 0 6px}
     input{
-      width:100%;
-      background:rgba(0,0,0,.2);
-      border:1px solid var(--line);
-      color:var(--text);
-      border-radius:12px;
-      padding:12px 12px;
+      width:100%; box-sizing:border-box; padding:12px 12px;
+      border-radius:12px; border:1px solid var(--line);
+      background: rgba(11,12,16,.65); color:var(--text);
       outline:none;
     }
-    input:focus{border-color:rgba(61,220,151,.45)}
-    .row{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:12px;
-    }
-    @media (max-width:800px){
-      .row{grid-template-columns:1fr}
-    }
-    .actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:12px;
-    }
+    input:focus{border-color: rgba(61,220,151,.45)}
+    .actions{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap}
     button{
-      border:1px solid var(--line);
-      background:rgba(0,0,0,.12);
-      color:var(--text);
-      padding:10px 14px;
-      border-radius:14px;
-      cursor:pointer;
-      font-weight:600;
+      cursor:pointer; padding:11px 14px; border-radius:12px;
+      border:1px solid var(--line); background: rgba(11,12,16,.25);
+      color:var(--text); font-weight:600;
     }
-    button.primary{
-      border-color:rgba(61,220,151,.45);
-      background:rgba(61,220,151,.12);
+    button.primary{background: rgba(61,220,151,.14); border-color: rgba(61,220,151,.35)}
+    button.danger{background: rgba(255,107,107,.10); border-color: rgba(255,107,107,.35)}
+    button:disabled{opacity:.45; cursor:not-allowed}
+    .statusLine{
+      padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+      background: rgba(11,12,16,.30); margin-top:10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:12.5px; color:var(--muted);
+      white-space:pre-wrap; word-break:break-word;
     }
-    button.danger{
-      border-color:rgba(255,107,107,.45);
-      background:rgba(255,107,107,.10);
-    }
-    button:disabled{
-      opacity:.55;
-      cursor:not-allowed;
-    }
-    .hint{
-      margin-top:10px;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.6;
-    }
+    .statusLine.ok{border-color: rgba(61,220,151,.35); color: var(--ok)}
+    .statusLine.bad{border-color: rgba(255,107,107,.35); color: var(--bad)}
     .toast{
-      position:fixed;
-      right:18px;
-      bottom:18px;
-      padding:12px 14px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(18,21,33,.9);
-      color:var(--text);
-      max-width:min(560px, calc(100vw - 36px));
-      box-shadow: 0 18px 60px rgba(0,0,0,.35);
-      transform: translateY(10px);
-      opacity:0;
-      pointer-events:none;
-      transition: all .18s ease;
-      font-size:13px;
-      white-space:pre-wrap;
+      position: fixed; right: 18px; bottom: 18px;
+      background: rgba(18,21,33,.92); border:1px solid var(--line);
+      color: var(--text); padding: 12px 14px; border-radius: 12px;
+      box-shadow: var(--shadow); max-width: 420px; z-index: 9999;
+      opacity:0; transform: translateY(8px); transition: .18s ease;
     }
-    .toast.show{
-      opacity:1;
-      transform: translateY(0);
-    }
-    .toast.ok{border-color:rgba(61,220,151,.45)}
-    .toast.bad{border-color:rgba(255,107,107,.45)}
-    .toast.warn{border-color:rgba(255,204,102,.45)}
-    .small{
-      font-size:12px;
-      color:var(--muted);
-    }
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .toast.show{opacity:1; transform: translateY(0)}
+    .hint{color:var(--muted); font-size:12px; line-height:1.7; margin-top:10px}
+    .hint b{color:var(--text)}
+    .mini{font-size:12px;color:var(--muted); margin-top:8px}
   </style>
+
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-  <header>
-    <div class="title">旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</div>
-    <div class="tags">
-      <div class="tag" id="tagAuth">未ログイン</div>
-      <div class="tag" id="tagRole">role: -</div>
-    </div>
-  </header>
-
   <div class="wrap">
-    <div class="panel">
-      <div class="grid">
+    <div class="topbar">
+      <h1>旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</h1>
+      <div class="pill">
+        <span id="whoTag" class="tag">未ログイン</span>
+        <span id="roleTag" class="tag">role: -</span>
+      </div>
+    </div>
 
-        <div class="card">
-          <h2>ログイン</h2>
+    <div class="grid">
+      <div class="card">
+        <h2>ログイン</h2>
 
-          <div class="row">
-            <div>
-              <label>メール</label>
-              <input id="email" type="email" placeholder="staff@example.com" autocomplete="email" />
-            </div>
-            <div>
-              <label>パスワード</label>
-              <input id="password" type="password" placeholder="********" autocomplete="current-password" />
-            </div>
+        <div class="row">
+          <div class="field">
+            <label>メール</label>
+            <input id="email" type="email" placeholder="staff@example.com" />
           </div>
-
-          <div class="actions">
-            <button class="primary" id="btnSignIn">ログイン</button>
-            <button id="btnSignUp">新規登録</button>
-            <button class="danger" id="btnLogout" disabled>ログアウト</button>
-          </div>
-
-          <div class="hint">
-            ※ スタッフは「新規登録」→（メール確認がONならメール確認）→「ログイン」でOK。<br />
-            ※ 管理者付与は、Supabase の <span class="mono">members.role</span> を <span class="mono">staff → admin</span> に変更した時だけ。
+          <div class="field">
+            <label>パスワード</label>
+            <input id="password" type="password" placeholder="********" />
           </div>
         </div>
 
-        <div class="card">
-          <h2>状態</h2>
-          <div class="small">この枠は「接続確認」と「原因切り分け」用。うまくいかない時の情報がここに出るようにしてあります。</div>
-          <div style="margin-top:12px; display:grid; gap:10px;">
-            <div class="tag" id="tagConn">Supabase: 未確認</div>
-            <div class="tag" id="tagUser">user: -</div>
-            <div class="tag" id="tagMsg">message: -</div>
-          </div>
-
-          <div class="hint" style="margin-top:14px;">
-            よくある原因：<br />
-            ・Supabase の Auth 設定で「Email confirmations」がONなのに、確認前にログインしようとしている<br />
-            ・URL / ANON KEY が違うプロジェクトのものになっている<br />
-            ・メールが既に登録済み（同じメールで signUp はできない）
-          </div>
+        <div class="actions">
+          <button class="primary" id="btnSignIn">ログイン</button>
+          <button id="btnSignUp">新規登録</button>
+          <button class="danger" id="btnLogout" disabled>ログアウト</button>
         </div>
 
+        <div class="hint">
+          ※ スタッフは「新規登録」→（<b>メール確認</b>がONならメールのConfirm）→「ログイン」でOK。<br/>
+          ※ 管理者付与は、管理者が Supabase の <b>members.role</b> を staff→admin に変更した時だけ。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>状態</h2>
+        <div class="mini">この枠は「接続確認」と「原因切り分け」用。うまくいかない時の情報がここに出るようにしてあります。</div>
+
+        <div id="sbLine" class="statusLine">Supabase: ...</div>
+        <div id="userLine" class="statusLine">user: -</div>
+        <div id="msgLine" class="statusLine">message: -</div>
+
+        <div class="hint" style="margin-top:12px">
+          よくある原因：<br/>
+          ・Supabase の Auth 設定で <b>Email confirmations</b> がONなのに、確認前にログインしようとしている<br/>
+          ・Supabase の <b>Site URL / Redirect URLs</b> が localhost のまま（Confirm が localhost に飛ぶ）<br/>
+          ・パスワード違い / メール確認が未完了 / 別プロジェクトのURL・KEYを入れている
+        </div>
       </div>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
 
-  <!-- Supabase JS v2 (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <script>
-    // =========================================================
+    // ==============================
     // 0) SET YOUR KEYS HERE
-    // =========================================================
+    // ==============================
     const SUPABASE_URL = "https://yuhjerjsfcpwyzeogvmk.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aGplcmpzZmNwd3l6ZW9ndm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzkyMDQsImV4cCI6MjA4NjM1NTIwNH0.ukahtsFqwuXrG_Ywp9SC6kNWQbGYTUROeDicZQIEglI";
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_KEY_HERE";
 
-    // ✅ これ1回だけ。二重宣言なし。anonymousも使わない。
+    // ★超重要：変数名は "supabase" にしない（window.supabase と衝突/二重宣言が起きやすい）
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // helpers
+    // ==============================
+    // small helpers
+    // ==============================
     const $ = (id) => document.getElementById(id);
-    function toast(msg, type="warn"){
-      const t = $("toast");
+
+    const toast = (msg) => {
+      const t = $('toast');
       t.textContent = msg;
-      t.className = "toast show " + (type || "");
+      t.classList.add('show');
       clearTimeout(toast._tm);
-      toast._tm = setTimeout(()=> t.className = "toast", 5200);
-    }
-    function setTag(id, text, type=""){
-      const el = $(id);
+      toast._tm = setTimeout(()=>t.classList.remove('show'), 3600);
+    };
+
+    const setLine = (el, text, kind) => {
       el.textContent = text;
-      el.className = "tag " + (type || "");
+      el.classList.remove('ok','bad');
+      if(kind) el.classList.add(kind);
+    };
+
+    const setTags = (userEmail, role) => {
+      const whoTag = $('whoTag');
+      const roleTag = $('roleTag');
+
+      if(userEmail){
+        whoTag.textContent = userEmail;
+        whoTag.className = 'tag ok';
+      }else{
+        whoTag.textContent = '未ログイン';
+        whoTag.className = 'tag';
+      }
+
+      roleTag.textContent = 'role: ' + (role || '-');
+      roleTag.className = 'tag';
+    };
+
+    let sessionUser = null;
+    let myRole = null;
+
+    // ==============================
+    // 1) Handle email confirmation redirect (PKCE)
+    //    Confirm のリンクが「このサイト」に戻ってきた時にセッション確立する
+    // ==============================
+    async function handleAuthRedirectIfAny(){
+      try{
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code'); // PKCE flow
+        if(code){
+          setLine($('msgLine'), 'message: exchanging code...', null);
+          const { data, error } = await sb.auth.exchangeCodeForSession(code);
+          if(error){
+            setLine($('msgLine'), 'message: ' + error.message, 'bad');
+            return;
+          }
+          // URL をきれいにする
+          url.searchParams.delete('code');
+          window.history.replaceState({}, document.title, url.toString());
+
+          toast('メール確認が完了しました。ログイン状態を更新します。');
+        }
+      }catch(e){
+        // ignore
+      }
     }
 
-    // state
-    let sessionUser = null;
-    let myRole = "-";
+    // ==============================
+    // 2) Connection check
+    // ==============================
+    async function checkSupabase(){
+      try{
+        // 軽いAPI呼び出し（認証不要）
+        const { data, error } = await sb.from('members').select('id').limit(1);
+        if(error){
+          setLine($('sbLine'), 'Supabase: NG (' + error.message + ')', 'bad');
+        }else{
+          setLine($('sbLine'), 'Supabase: OK', 'ok');
+        }
+      }catch(e){
+        setLine($('sbLine'), 'Supabase: NG (Failed to fetch / network)', 'bad');
+      }
+    }
 
-    async function refreshSessionUI(){
-      // 1) session
-      const { data, error } = await sb.auth.getSession();
+    // ==============================
+    // 3) Role fetch
+    // ==============================
+    async function refreshRole(){
+      myRole = 'staff';
+      if(!sessionUser) return;
+
+      const { data, error } = await sb
+        .from('members')
+        .select('role,email')
+        .eq('user_id', sessionUser.id)
+        .maybeSingle();
+
       if(error){
-        setTag("tagMsg", "message: " + error.message, "bad");
+        // 権限/ポリシーで取れない場合など
+        myRole = 'staff';
         return;
       }
-      sessionUser = data?.session?.user || null;
+      if(data && data.role) myRole = data.role;
+    }
 
-      // UI
-      setTag("tagAuth", sessionUser ? "ログイン中" : "未ログイン", sessionUser ? "ok" : "");
-      setTag("tagUser", "user: " + (sessionUser?.email || "-"), sessionUser ? "ok" : "");
-      $("btnLogout").disabled = !sessionUser;
+    // ==============================
+    // 4) UI state sync
+    // ==============================
+    async function syncSessionToUI(){
+      const { data } = await sb.auth.getSession();
+      sessionUser = data.session?.user || null;
 
-      // 2) role (membersテーブルが無くても落ちないようにする)
-      myRole = "-";
       if(sessionUser){
-        try{
-          const { data: row, error: e2 } = await sb
-            .from("members")
-            .select("role,email")
-            .eq("user_id", sessionUser.id)
-            .maybeSingle();
-
-          if(!e2 && row?.role){
-            myRole = row.role;
-          }else{
-            // membersが未設定でも動作自体はOKにする
-            myRole = "staff";
-          }
-        }catch(_e){
-          myRole = "staff";
-        }
+        await refreshRole();
+        $('btnLogout').disabled = false;
+      }else{
+        myRole = null;
+        $('btnLogout').disabled = true;
       }
-      setTag("tagRole", "role: " + myRole, sessionUser ? "ok" : "");
+
+      setTags(sessionUser?.email || null, myRole);
+      setLine($('userLine'), 'user: ' + (sessionUser?.email || '-'), null);
     }
 
-    async function checkConnection(){
-      // Supabase自体につながってるかの簡易チェック
-      try{
-        const { data, error } = await sb.auth.getSession();
-        if(error){
-          setTag("tagConn", "Supabase: NG (" + error.message + ")", "bad");
-          return;
-        }
-        setTag("tagConn", "Supabase: OK", "ok");
-        setTag("tagMsg", "message: ready", "ok");
-      }catch(e){
-        setTag("tagConn", "Supabase: NG (" + (e?.message || e) + ")", "bad");
-      }
-    }
-
+    // ==============================
+    // 5) Auth actions
+    // ==============================
     async function signUp(){
-      const email = $("email").value.trim();
-      const password = $("password").value;
+      const email = $('email').value.trim();
+      const password = $('password').value;
 
       if(!email || !password){
-        toast("メールとパスワードを入れてください", "warn");
+        toast('メールとパスワードを入れてね');
         return;
       }
-      try{
-        const { data, error } = await sb.auth.signUp({ email, password });
 
-        if(error){
-          toast("登録エラー: " + error.message, "bad");
-          setTag("tagMsg", "message: " + error.message, "bad");
-          return;
-        }
+      setLine($('msgLine'), 'message: signing up...', null);
 
-        // Supabaseの設定によって挙動が変わる
-        // Email confirmations ON → userはすぐ有効にならず、メール確認が必要
-        const user = data?.user;
-        const session = data?.session;
+      // ★超重要：Confirm が localhost に飛ぶのを防ぐ（メールのリンク先を今のドメインにする）
+      const emailRedirectTo = window.location.origin;
 
-        if(session){
-          toast("登録OK。すでにログイン状態になりました。", "ok");
-        }else{
-          toast("登録OK。メール確認が必要な設定の可能性があります（受信箱を確認してからログイン）。", "ok");
-        }
+      const { data, error } = await sb.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo }
+      });
 
-        await refreshSessionUI();
-      }catch(e){
-        toast("登録エラー: " + (e?.message || e), "bad");
+      if(error){
+        setLine($('msgLine'), 'message: ' + error.message, 'bad');
+        toast('登録エラー: ' + error.message);
+        return;
       }
+
+      setLine($('msgLine'), 'message: signUp OK. Check email confirmation if enabled.', 'ok');
+
+      // Email confirmations がONなら、ここではログイン状態にならず「確認メール待ち」になる
+      toast('登録OK。メール確認が必要なら、届いたメールのConfirmを押してからログインしてね。');
+      await syncSessionToUI();
     }
 
     async function signIn(){
-      const email = $("email").value.trim();
-      const password = $("password").value;
+      const email = $('email').value.trim();
+      const password = $('password').value;
 
       if(!email || !password){
-        toast("メールとパスワードを入れてください", "warn");
+        toast('メールとパスワードを入れてね');
         return;
       }
-      try{
-        const { data, error } = await sb.auth.signInWithPassword({ email, password });
 
-        if(error){
-          toast("ログインエラー: " + error.message, "bad");
-          setTag("tagMsg", "message: " + error.message, "bad");
-          return;
-        }
+      setLine($('msgLine'), 'message: signing in...', null);
 
-        sessionUser = data?.user || null;
-        toast("ログインOK", "ok");
-        setTag("tagMsg", "message: signed in", "ok");
-        await refreshSessionUI();
-      }catch(e){
-        toast("ログインエラー: " + (e?.message || e), "bad");
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+      if(error){
+        setLine($('msgLine'), 'message: ' + error.message, 'bad');
+        toast('ログインエラー: ' + error.message);
+        return;
       }
+
+      sessionUser = data.user;
+      setLine($('msgLine'), 'message: login OK', 'ok');
+      toast('ログインしました');
+      await syncSessionToUI();
     }
 
     async function logout(){
-      try{
-        const { error } = await sb.auth.signOut();
-        if(error){
-          toast("ログアウトエラー: " + error.message, "bad");
-          return;
-        }
-        toast("ログアウトしました", "ok");
-        setTag("tagMsg", "message: signed out", "ok");
-        await refreshSessionUI();
-      }catch(e){
-        toast("ログアウトエラー: " + (e?.message || e), "bad");
+      setLine($('msgLine'), 'message: signing out...', null);
+      const { error } = await sb.auth.signOut();
+      if(error){
+        setLine($('msgLine'), 'message: ' + error.message, 'bad');
+        toast('ログアウトエラー: ' + error.message);
+        return;
       }
+      setLine($('msgLine'), 'message: signed out', 'ok');
+      toast('ログアウトしました');
+      await syncSessionToUI();
     }
 
-    // events
-    $("btnSignUp").addEventListener("click", signUp);
-    $("btnSignIn").addEventListener("click", signIn);
-    $("btnLogout").addEventListener("click", logout);
+    // ==============================
+    // boot
+    // ==============================
+    $('btnSignUp').addEventListener('click', signUp);
+    $('btnSignIn').addEventListener('click', signIn);
+    $('btnLogout').addEventListener('click', logout);
 
-    // init
-    (async () => {
-      await checkConnection();
-      await refreshSessionUI();
+    // セッション変化を追従
+    sb.auth.onAuthStateChange(async () => {
+      await syncSessionToUI();
+    });
 
-      // セッション変化を追従
-      sb.auth.onAuthStateChange(async () => {
-        await refreshSessionUI();
-      });
+    (async function init(){
+      await handleAuthRedirectIfAny();
+      await checkSupabase();
+      await syncSessionToUI();
+      setLine($('msgLine'), 'message: ready', null);
     })();
   </script>
 </body>
 </html>
-
