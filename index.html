@@ -68,7 +68,7 @@
     </div>
     <p style="color:var(--muted);font-size:12px;line-height:1.6;margin:10px 0 0">
       ※ スタッフは「新規登録」→ログインでOK。<br>
-      ※ 管理者付与は、あなたが Supabase の members.role を staff→admin に変更した時だけ。
+      ※ 管理者付与は、管理者が Supabase の members.role を staff→admin に変更した時だけ。
     </p>
   </section>
 
@@ -186,7 +186,8 @@
   const SUPABASE_URL = "https://yuhjerjsfcpwyzeogvmk.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aGplcmpzZmNwd3l6ZW9ndm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzkyMDQsImV4cCI6MjA4NjM1NTIwNH0.ukahtsFqwuXrG_Ywp9SC6kNWQbGYTUROeDicZQIEglI";
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 
   const $ = (id)=>document.getElementById(id);
   const toast = (msg)=>{ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove('show'),2200); };
@@ -243,7 +244,7 @@
     myRole = 'staff';
     if(!sessionUser) return;
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('members')
       .select('role,email')
       .eq('user_id', sessionUser.id)
@@ -267,7 +268,7 @@
   }
 
   async function loadInvoices(){
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('invoices')
       .select('*')
       .order('bill_date', { ascending:false })
@@ -361,7 +362,7 @@
     };
 
     // unique(inv_no) なので upsert が楽
-    const { error } = await supabase
+    const { error } = await client
       .from('invoices')
       .upsert(payload, { onConflict:'inv_no' });
 
@@ -377,7 +378,7 @@
     if(!selectedId){ toast('削除対象が未選択'); return; }
     if(!confirm('削除しますか？')) return;
 
-    const { error } = await supabase
+    const { error } = await client
       .from('invoices')
       .delete()
       .eq('id', selectedId);
@@ -395,7 +396,7 @@
   async function signUp(){
     const email = $('email').value.trim();
     const password = $('password').value;
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await client.auth.signUp({ email, password });
     if(error){ toast('登録エラー：'+error.message); return; }
     toast('登録OK。ログインしてください');
   }
@@ -403,7 +404,7 @@
   async function signIn(){
     const email = $('email').value.trim();
     const password = $('password').value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
     if(error){ toast('ログインエラー：'+error.message); return; }
     sessionUser = data.user;
     $('who').textContent = sessionUser.email;
@@ -415,7 +416,7 @@
   }
 
   async function logout(){
-    await supabase.auth.signOut();
+    await client.auth.signOut();
     sessionUser = null;
     myRole = 'staff';
     $('who').textContent = '未ログイン';
@@ -428,7 +429,7 @@
 
   // Restore session
   (async ()=>{
-    const { data } = await supabase.auth.getSession();
+    const { data } = await client.auth.getSession();
     if(data.session){
       sessionUser = data.session.user;
       $('who').textContent = sessionUser.email;
@@ -454,3 +455,4 @@
 </script>
 </body>
 </html>
+
