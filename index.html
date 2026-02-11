@@ -3,457 +3,407 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>旅行売上管理（クラウド版）</title>
+  <title>旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</title>
   <style>
-    :root{--bg:#0b0c10;--card:#121521;--line:#262b42;--text:#eef0f6;--muted:#9aa3b2;--ok:#3ddc97;--bad:#ff6b6b;--warn:#ffcc66;}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--text)}
-    header{position:sticky;top:0;background:rgba(11,12,16,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:14px 16px;z-index:2}
-    h1{margin:0;font-size:14px}
-    main{max-width:1100px;margin:0 auto;padding:16px}
-    .grid{display:grid;gap:12px}
-    @media(min-width:980px){.grid{grid-template-columns:1fr 1fr}}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
-    label{display:block;font-size:11px;color:var(--muted);margin:8px 0 6px}
-    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1220;color:var(--text);outline:none}
-    textarea{min-height:70px;resize:vertical}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .field{flex:1;min-width:160px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    button{cursor:pointer;border:1px solid var(--line);background:#151a2a;color:var(--text);padding:10px 12px;border-radius:10px;font-weight:700}
-    button:hover{background:#1c2240}
-    button.primary{border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.12)}
-    button.danger{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.12)}
-    .tag{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#0f1220;color:var(--muted);font-size:11px}
-    .tag.ok{color:var(--ok);border-color:rgba(61,220,151,.35)}
-    .tag.warn{color:var(--warn);border-color:rgba(255,204,102,.35)}
-    .tag.bad{color:var(--bad);border-color:rgba(255,107,107,.35)}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px;vertical-align:top}
-    th{color:var(--muted);text-align:left}
-    tr:hover td{background:rgba(122,162,255,.06)}
-    .right{text-align:right}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .toast{position:fixed;right:12px;bottom:12px;max-width:520px;background:#0f1220;border:1px solid var(--line);padding:10px 12px;border-radius:12px;display:none}
-    .toast.show{display:block}
+    :root{
+      --bg:#0b0c10;
+      --card:#121521;
+      --line:#262b42;
+      --text:#eef0f6;
+      --muted:#9aa3b2;
+      --ok:#3ddc97;
+      --bad:#ff6b6b;
+      --warn:#ffcc66;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+      color:var(--text);
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(61,220,151,.12), transparent 55%),
+                  radial-gradient(900px 600px at 80% 10%, rgba(255,204,102,.10), transparent 50%),
+                  var(--bg);
+      min-height:100vh;
+    }
+    header{
+      padding:18px 18px 0 18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .title{
+      font-weight:700;
+      letter-spacing:.2px;
+      font-size:22px;
+    }
+    .tags{display:flex; gap:10px; align-items:center;}
+    .tag{
+      padding:8px 12px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      color:var(--muted);
+      background:rgba(18,21,33,.6);
+      font-size:13px;
+    }
+    .tag.ok{color:var(--ok); border-color:rgba(61,220,151,.4)}
+    .tag.bad{color:var(--bad); border-color:rgba(255,107,107,.4)}
+    .wrap{
+      padding:18px;
+      display:flex;
+      justify-content:center;
+    }
+    .panel{
+      width:min(980px, 100%);
+      border:1px solid var(--line);
+      background:rgba(18,21,33,.72);
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+      border-radius:18px;
+      padding:18px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+    @media (max-width:800px){
+      .grid{grid-template-columns:1fr}
+    }
+    .card{
+      border:1px solid var(--line);
+      background:rgba(11,12,16,.35);
+      border-radius:16px;
+      padding:16px;
+    }
+    h2{
+      margin:0 0 12px;
+      font-size:18px;
+    }
+    label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    input{
+      width:100%;
+      background:rgba(0,0,0,.2);
+      border:1px solid var(--line);
+      color:var(--text);
+      border-radius:12px;
+      padding:12px 12px;
+      outline:none;
+    }
+    input:focus{border-color:rgba(61,220,151,.45)}
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width:800px){
+      .row{grid-template-columns:1fr}
+    }
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    button{
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.12);
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.primary{
+      border-color:rgba(61,220,151,.45);
+      background:rgba(61,220,151,.12);
+    }
+    button.danger{
+      border-color:rgba(255,107,107,.45);
+      background:rgba(255,107,107,.10);
+    }
+    button:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+    .hint{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.6;
+    }
+    .toast{
+      position:fixed;
+      right:18px;
+      bottom:18px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(18,21,33,.9);
+      color:var(--text);
+      max-width:min(560px, calc(100vw - 36px));
+      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+      transform: translateY(10px);
+      opacity:0;
+      pointer-events:none;
+      transition: all .18s ease;
+      font-size:13px;
+      white-space:pre-wrap;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateY(0);
+    }
+    .toast.ok{border-color:rgba(61,220,151,.45)}
+    .toast.bad{border-color:rgba(255,107,107,.45)}
+    .toast.warn{border-color:rgba(255,204,102,.45)}
+    .small{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
   </style>
 </head>
+
 <body>
-<header>
-  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-    <h1>旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</h1>
-    <div class="row" style="gap:8px;align-items:center">
-      <span class="tag" id="who">未ログイン</span>
-      <span class="tag" id="roleTag">role: -</span>
-      <button id="btnLogout" style="display:none">ログアウト</button>
+  <header>
+    <div class="title">旅行売上・粗利・未回収 管理（クラウド版 / Supabase）</div>
+    <div class="tags">
+      <div class="tag" id="tagAuth">未ログイン</div>
+      <div class="tag" id="tagRole">role: -</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="panel">
+      <div class="grid">
+
+        <div class="card">
+          <h2>ログイン</h2>
+
+          <div class="row">
+            <div>
+              <label>メール</label>
+              <input id="email" type="email" placeholder="staff@example.com" autocomplete="email" />
+            </div>
+            <div>
+              <label>パスワード</label>
+              <input id="password" type="password" placeholder="********" autocomplete="current-password" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="primary" id="btnSignIn">ログイン</button>
+            <button id="btnSignUp">新規登録</button>
+            <button class="danger" id="btnLogout" disabled>ログアウト</button>
+          </div>
+
+          <div class="hint">
+            ※ スタッフは「新規登録」→（メール確認がONならメール確認）→「ログイン」でOK。<br />
+            ※ 管理者付与は、Supabase の <span class="mono">members.role</span> を <span class="mono">staff → admin</span> に変更した時だけ。
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>状態</h2>
+          <div class="small">この枠は「接続確認」と「原因切り分け」用。うまくいかない時の情報がここに出るようにしてあります。</div>
+          <div style="margin-top:12px; display:grid; gap:10px;">
+            <div class="tag" id="tagConn">Supabase: 未確認</div>
+            <div class="tag" id="tagUser">user: -</div>
+            <div class="tag" id="tagMsg">message: -</div>
+          </div>
+
+          <div class="hint" style="margin-top:14px;">
+            よくある原因：<br />
+            ・Supabase の Auth 設定で「Email confirmations」がONなのに、確認前にログインしようとしている<br />
+            ・URL / ANON KEY が違うプロジェクトのものになっている<br />
+            ・メールが既に登録済み（同じメールで signUp はできない）
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
-</header>
 
-<main>
-  <section class="card" id="loginCard">
-    <h2 style="margin:0 0 10px;font-size:14px">ログイン</h2>
-    <div class="row">
-      <div class="field">
-        <label>メール</label>
-        <input id="email" type="email" placeholder="staff@example.com" />
-      </div>
-      <div class="field">
-        <label>パスワード</label>
-        <input id="password" type="password" placeholder="********" />
-      </div>
-    </div>
-    <div class="actions">
-      <button class="primary" id="btnSignIn">ログイン</button>
-      <button id="btnSignUp">新規登録</button>
-    </div>
-    <p style="color:var(--muted);font-size:12px;line-height:1.6;margin:10px 0 0">
-      ※ スタッフは「新規登録」→ログインでOK。<br>
-      ※ 管理者付与は、管理者が Supabase の members.role を staff→admin に変更した時だけ。
-    </p>
-  </section>
+  <div id="toast" class="toast"></div>
 
-  <div class="grid" id="appGrid" style="display:none">
-    <section class="card">
-      <h2 style="margin:0 0 10px;font-size:14px">入力（請求書）</h2>
+  <!-- Supabase JS v2 (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-      <div class="row">
-        <div class="field">
-          <label>請求書番号（必須）</label>
-          <input id="inv_no" placeholder="例：FR-2026-001" />
-        </div>
-        <div class="field">
-          <label>ステータス</label>
-          <select id="status">
-            <option>見積中</option>
-            <option selected>請求済</option>
-            <option>一部入金</option>
-            <option>入金済</option>
-            <option>取消</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>請求日</label>
-          <input id="bill_date" type="date" />
-        </div>
-        <div class="field">
-          <label>実施日</label>
-          <input id="service_date" type="date" />
-        </div>
-      </div>
+  <script>
+    // =========================================================
+    // 0) SET YOUR KEYS HERE
+    // =========================================================
+    const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
-      <div class="row">
-        <div class="field">
-          <label>取引先</label>
-          <input id="client" placeholder="例：〇〇 Travel" />
-        </div>
-        <div class="field">
-          <label>案件名</label>
-          <input id="project" placeholder="例：Nagasaki Private Tour" />
-        </div>
-        <div class="field">
-          <label>PAX</label>
-          <input id="pax" type="number" min="0" step="1" />
-        </div>
-      </div>
+    // ✅ これ1回だけ。二重宣言なし。anonymousも使わない。
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      <div class="row">
-        <div class="field"><label>売上（税込）</label><input id="revenue" type="number" min="0" step="1" /></div>
-        <div class="field"><label>入金額</label><input id="paid" type="number" min="0" step="1" /></div>
-      </div>
-
-      <div class="row">
-        <div class="field"><label>バス代</label><input id="cost_bus" type="number" min="0" step="1" /></div>
-        <div class="field"><label>ガイド代</label><input id="cost_guide" type="number" min="0" step="1" /></div>
-        <div class="field"><label>食事代</label><input id="cost_meal" type="number" min="0" step="1" /></div>
-      </div>
-      <div class="row">
-        <div class="field"><label>入場料・体験</label><input id="cost_entry" type="number" min="0" step="1" /></div>
-        <div class="field"><label>外注/手配</label><input id="cost_outsource" type="number" min="0" step="1" /></div>
-        <div class="field"><label>その他原価</label><input id="cost_other" type="number" min="0" step="1" /></div>
-      </div>
-
-      <label>原価メモ</label>
-      <textarea id="cost_memo" placeholder="支払先や内訳メモ"></textarea>
-
-      <div class="row" style="margin-top:10px;align-items:center">
-        <span class="tag" id="t_cost">原価合計：¥0</span>
-        <span class="tag" id="t_profit">粗利：¥0</span>
-        <span class="tag" id="t_unpaid">未回収：¥0</span>
-      </div>
-
-      <div class="actions">
-        <button class="primary" id="btnSave">保存（追加/更新）</button>
-        <button id="btnClear">クリア</button>
-        <button class="danger" id="btnDelete" disabled>削除（adminのみ）</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2 style="margin:0 0 10px;font-size:14px">一覧</h2>
-      <div class="row" style="align-items:center">
-        <span class="tag" id="count">0件</span>
-        <span class="tag" id="sum">売上 ¥0 / 粗利 ¥0 / 未回収 ¥0</span>
-        <button id="btnReload">更新</button>
-      </div>
-
-      <div style="overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:10px">
-        <table>
-          <thead>
-            <tr>
-              <th>請求書番号</th><th>ステータス</th><th>請求日</th><th>取引先</th><th>案件名</th>
-              <th class="right">売上</th><th class="right">原価</th><th class="right">粗利</th><th class="right">入金</th><th class="right">未回収</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-
-      <p style="color:var(--muted);font-size:12px;line-height:1.6;margin:10px 0 0">
-        行をクリックすると編集できます。削除は admin のみ。
-      </p>
-    </section>
-  </div>
-</main>
-
-<div class="toast" id="toast"></div>
-
-<!-- Supabase JS v2 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  // =========================
-  // 0) SET YOUR KEYS HERE
-  // =========================
-  const SUPABASE_URL = "https://yuhjerjsfcpwyzeogvmk.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aGplcmpzZmNwd3l6ZW9ndm1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzkyMDQsImV4cCI6MjA4NjM1NTIwNH0.ukahtsFqwuXrG_Ywp9SC6kNWQbGYTUROeDicZQIEglI";
-
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-
-  const $ = (id)=>document.getElementById(id);
-  const toast = (msg)=>{ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove('show'),2200); };
-
-  const yen = (n)=>'¥'+Number(n||0).toLocaleString('ja-JP');
-  const num = (v)=>{ const n=Number(v); return isFinite(n)?n:0; };
-
-  let sessionUser = null;
-  let myRole = 'staff';
-  let selectedId = null;
-
-  function calcTags(){
-    const revenue = num($('revenue').value);
-    const paid = num($('paid').value);
-    const cost = num($('cost_bus').value)+num($('cost_guide').value)+num($('cost_meal').value)+num($('cost_entry').value)+num($('cost_outsource').value)+num($('cost_other').value);
-    const profit = revenue - cost;
-    const unpaid = revenue - paid;
-
-    $('t_cost').textContent = '原価合計：'+yen(cost);
-    $('t_profit').textContent = '粗利：'+yen(profit);
-    $('t_unpaid').textContent = '未回収：'+yen(unpaid);
-
-    $('t_profit').className = 'tag ' + (profit<0?'bad':(profit>0?'ok':''));
-    $('t_unpaid').className = 'tag ' + (unpaid>0?'warn':'ok');
-  }
-
-  ['revenue','paid','cost_bus','cost_guide','cost_meal','cost_entry','cost_outsource','cost_other'].forEach(id=>{
-    $(id).addEventListener('input', calcTags);
-  });
-
-  function clearForm(){
-    selectedId = null;
-    $('inv_no').value='';
-    $('status').value='請求済';
-    $('bill_date').value='';
-    $('service_date').value='';
-    $('client').value='';
-    $('project').value='';
-    $('pax').value='';
-    $('revenue').value='';
-    $('paid').value='';
-    $('cost_bus').value='';
-    $('cost_guide').value='';
-    $('cost_meal').value='';
-    $('cost_entry').value='';
-    $('cost_outsource').value='';
-    $('cost_other').value='';
-    $('cost_memo').value='';
-    $('btnDelete').disabled = true;
-    calcTags();
-  }
-
-  async function refreshRole(){
-    myRole = 'staff';
-    if(!sessionUser) return;
-
-    const { data, error } = await client
-      .from('members')
-      .select('role,email')
-      .eq('user_id', sessionUser.id)
-      .maybeSingle();
-
-    if(error){
-      // members_read_self があるので基本は取れる
-      console.warn(error);
+    // helpers
+    const $ = (id) => document.getElementById(id);
+    function toast(msg, type="warn"){
+      const t = $("toast");
+      t.textContent = msg;
+      t.className = "toast show " + (type || "");
+      clearTimeout(toast._tm);
+      toast._tm = setTimeout(()=> t.className = "toast", 5200);
     }
-    if(data && data.role) myRole = data.role;
-
-    $('roleTag').textContent = 'role: ' + myRole;
-    $('roleTag').className = 'tag ' + (myRole==='admin' ? 'ok' : '');
-    $('btnDelete').textContent = myRole==='admin' ? '削除（admin）' : '削除（adminのみ）';
-  }
-
-  function setLoggedInUI(on){
-    $('loginCard').style.display = on ? 'none' : 'block';
-    $('appGrid').style.display = on ? 'grid' : 'none';
-    $('btnLogout').style.display = on ? 'inline-block' : 'none';
-  }
-
-  async function loadInvoices(){
-    const { data, error } = await client
-      .from('invoices')
-      .select('*')
-      .order('bill_date', { ascending:false })
-      .limit(200);
-
-    if(error){ toast('一覧取得エラー：'+error.message); return; }
-
-    const tbody = $('tbody');
-    tbody.innerHTML='';
-
-    let sumRev=0, sumCost=0, sumProfit=0, sumUnpaid=0;
-
-    data.forEach(r=>{
-      const cost = num(r.cost_bus)+num(r.cost_guide)+num(r.cost_meal)+num(r.cost_entry)+num(r.cost_outsource)+num(r.cost_other);
-      const profit = num(r.revenue)-cost;
-      const unpaid = num(r.revenue)-num(r.paid);
-
-      sumRev += num(r.revenue);
-      sumCost += cost;
-      sumProfit += profit;
-      sumUnpaid += Math.max(0,unpaid);
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="mono">${escapeHtml(r.inv_no)}</td>
-        <td>${escapeHtml(r.status||'')}</td>
-        <td>${escapeHtml(r.bill_date||'')}</td>
-        <td>${escapeHtml(r.client||'')}</td>
-        <td>${escapeHtml(r.project||'')}</td>
-        <td class="right">${yen(r.revenue)}</td>
-        <td class="right">${yen(cost)}</td>
-        <td class="right">${yen(profit)}</td>
-        <td class="right">${yen(r.paid)}</td>
-        <td class="right">${yen(Math.max(0,unpaid))}</td>
-      `;
-      tr.addEventListener('click', ()=>fillForm(r));
-      tbody.appendChild(tr);
-    });
-
-    $('count').textContent = data.length+'件';
-    $('sum').textContent = `売上 ${yen(sumRev)} / 粗利 ${yen(sumProfit)} / 未回収 ${yen(sumUnpaid)}`;
-  }
-
-  function escapeHtml(s){ return String(s??'').replace(/[&<>\"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
-
-  function fillForm(r){
-    selectedId = r.id;
-    $('inv_no').value = r.inv_no||'';
-    $('status').value = r.status||'請求済';
-    $('bill_date').value = r.bill_date||'';
-    $('service_date').value = r.service_date||'';
-    $('client').value = r.client||'';
-    $('project').value = r.project||'';
-    $('pax').value = r.pax ?? '';
-    $('revenue').value = r.revenue ?? '';
-    $('paid').value = r.paid ?? '';
-    $('cost_bus').value = r.cost_bus ?? '';
-    $('cost_guide').value = r.cost_guide ?? '';
-    $('cost_meal').value = r.cost_meal ?? '';
-    $('cost_entry').value = r.cost_entry ?? '';
-    $('cost_outsource').value = r.cost_outsource ?? '';
-    $('cost_other').value = r.cost_other ?? '';
-    $('cost_memo').value = r.cost_memo ?? '';
-
-    $('btnDelete').disabled = (myRole!=='admin');
-    calcTags();
-    toast('編集：'+r.inv_no);
-  }
-
-  async function upsertInvoice(){
-    const inv_no = $('inv_no').value.trim();
-    if(!inv_no){ toast('請求書番号を入れてね'); return; }
-
-    const payload = {
-      inv_no,
-      status: $('status').value,
-      bill_date: $('bill_date').value || null,
-      service_date: $('service_date').value || null,
-      client: $('client').value.trim(),
-      project: $('project').value.trim(),
-      pax: num($('pax').value),
-      revenue: num($('revenue').value),
-      paid: num($('paid').value),
-      cost_bus: num($('cost_bus').value),
-      cost_guide: num($('cost_guide').value),
-      cost_meal: num($('cost_meal').value),
-      cost_entry: num($('cost_entry').value),
-      cost_outsource: num($('cost_outsource').value),
-      cost_other: num($('cost_other').value),
-      cost_memo: $('cost_memo').value
-    };
-
-    // unique(inv_no) なので upsert が楽
-    const { error } = await client
-      .from('invoices')
-      .upsert(payload, { onConflict:'inv_no' });
-
-    if(error){ toast('保存エラー：'+error.message); return; }
-
-    toast('保存しました');
-    await loadInvoices();
-    clearForm();
-  }
-
-  async function deleteInvoice(){
-    if(myRole!=='admin'){ toast('削除はadminのみ'); return; }
-    if(!selectedId){ toast('削除対象が未選択'); return; }
-    if(!confirm('削除しますか？')) return;
-
-    const { error } = await client
-      .from('invoices')
-      .delete()
-      .eq('id', selectedId);
-
-    if(error){ toast('削除エラー：'+error.message); return; }
-
-    toast('削除しました');
-    await loadInvoices();
-    clearForm();
-  }
-
-  // =========================
-  // Auth
-  // =========================
-  async function signUp(){
-    const email = $('email').value.trim();
-    const password = $('password').value;
-    const { error } = await client.auth.signUp({ email, password });
-    if(error){ toast('登録エラー：'+error.message); return; }
-    toast('登録OK。ログインしてください');
-  }
-
-  async function signIn(){
-    const email = $('email').value.trim();
-    const password = $('password').value;
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if(error){ toast('ログインエラー：'+error.message); return; }
-    sessionUser = data.user;
-    $('who').textContent = sessionUser.email;
-    $('who').className = 'tag ok';
-    setLoggedInUI(true);
-    await refreshRole();
-    await loadInvoices();
-    clearForm();
-  }
-
-  async function logout(){
-    await client.auth.signOut();
-    sessionUser = null;
-    myRole = 'staff';
-    $('who').textContent = '未ログイン';
-    $('who').className = 'tag';
-    $('roleTag').textContent = 'role: -';
-    $('roleTag').className = 'tag';
-    setLoggedInUI(false);
-    clearForm();
-  }
-
-  // Restore session
-  (async ()=>{
-    const { data } = await client.auth.getSession();
-    if(data.session){
-      sessionUser = data.session.user;
-      $('who').textContent = sessionUser.email;
-      $('who').className = 'tag ok';
-      setLoggedInUI(true);
-      await refreshRole();
-      await loadInvoices();
-      clearForm();
-    } else {
-      setLoggedInUI(false);
+    function setTag(id, text, type=""){
+      const el = $(id);
+      el.textContent = text;
+      el.className = "tag " + (type || "");
     }
-  })();
 
-  // Buttons
-  $('btnSignUp').addEventListener('click', signUp);
-  $('btnSignIn').addEventListener('click', signIn);
-  $('btnLogout').addEventListener('click', logout);
+    // state
+    let sessionUser = null;
+    let myRole = "-";
 
-  $('btnSave').addEventListener('click', upsertInvoice);
-  $('btnClear').addEventListener('click', ()=>{ clearForm(); toast('クリア'); });
-  $('btnDelete').addEventListener('click', deleteInvoice);
-  $('btnReload').addEventListener('click', loadInvoices);
-</script>
+    async function refreshSessionUI(){
+      // 1) session
+      const { data, error } = await sb.auth.getSession();
+      if(error){
+        setTag("tagMsg", "message: " + error.message, "bad");
+        return;
+      }
+      sessionUser = data?.session?.user || null;
+
+      // UI
+      setTag("tagAuth", sessionUser ? "ログイン中" : "未ログイン", sessionUser ? "ok" : "");
+      setTag("tagUser", "user: " + (sessionUser?.email || "-"), sessionUser ? "ok" : "");
+      $("btnLogout").disabled = !sessionUser;
+
+      // 2) role (membersテーブルが無くても落ちないようにする)
+      myRole = "-";
+      if(sessionUser){
+        try{
+          const { data: row, error: e2 } = await sb
+            .from("members")
+            .select("role,email")
+            .eq("user_id", sessionUser.id)
+            .maybeSingle();
+
+          if(!e2 && row?.role){
+            myRole = row.role;
+          }else{
+            // membersが未設定でも動作自体はOKにする
+            myRole = "staff";
+          }
+        }catch(_e){
+          myRole = "staff";
+        }
+      }
+      setTag("tagRole", "role: " + myRole, sessionUser ? "ok" : "");
+    }
+
+    async function checkConnection(){
+      // Supabase自体につながってるかの簡易チェック
+      try{
+        const { data, error } = await sb.auth.getSession();
+        if(error){
+          setTag("tagConn", "Supabase: NG (" + error.message + ")", "bad");
+          return;
+        }
+        setTag("tagConn", "Supabase: OK", "ok");
+        setTag("tagMsg", "message: ready", "ok");
+      }catch(e){
+        setTag("tagConn", "Supabase: NG (" + (e?.message || e) + ")", "bad");
+      }
+    }
+
+    async function signUp(){
+      const email = $("email").value.trim();
+      const password = $("password").value;
+
+      if(!email || !password){
+        toast("メールとパスワードを入れてください", "warn");
+        return;
+      }
+      try{
+        const { data, error } = await sb.auth.signUp({ email, password });
+
+        if(error){
+          toast("登録エラー: " + error.message, "bad");
+          setTag("tagMsg", "message: " + error.message, "bad");
+          return;
+        }
+
+        // Supabaseの設定によって挙動が変わる
+        // Email confirmations ON → userはすぐ有効にならず、メール確認が必要
+        const user = data?.user;
+        const session = data?.session;
+
+        if(session){
+          toast("登録OK。すでにログイン状態になりました。", "ok");
+        }else{
+          toast("登録OK。メール確認が必要な設定の可能性があります（受信箱を確認してからログイン）。", "ok");
+        }
+
+        await refreshSessionUI();
+      }catch(e){
+        toast("登録エラー: " + (e?.message || e), "bad");
+      }
+    }
+
+    async function signIn(){
+      const email = $("email").value.trim();
+      const password = $("password").value;
+
+      if(!email || !password){
+        toast("メールとパスワードを入れてください", "warn");
+        return;
+      }
+      try{
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+        if(error){
+          toast("ログインエラー: " + error.message, "bad");
+          setTag("tagMsg", "message: " + error.message, "bad");
+          return;
+        }
+
+        sessionUser = data?.user || null;
+        toast("ログインOK", "ok");
+        setTag("tagMsg", "message: signed in", "ok");
+        await refreshSessionUI();
+      }catch(e){
+        toast("ログインエラー: " + (e?.message || e), "bad");
+      }
+    }
+
+    async function logout(){
+      try{
+        const { error } = await sb.auth.signOut();
+        if(error){
+          toast("ログアウトエラー: " + error.message, "bad");
+          return;
+        }
+        toast("ログアウトしました", "ok");
+        setTag("tagMsg", "message: signed out", "ok");
+        await refreshSessionUI();
+      }catch(e){
+        toast("ログアウトエラー: " + (e?.message || e), "bad");
+      }
+    }
+
+    // events
+    $("btnSignUp").addEventListener("click", signUp);
+    $("btnSignIn").addEventListener("click", signIn);
+    $("btnLogout").addEventListener("click", logout);
+
+    // init
+    (async () => {
+      await checkConnection();
+      await refreshSessionUI();
+
+      // セッション変化を追従
+      sb.auth.onAuthStateChange(async () => {
+        await refreshSessionUI();
+      });
+    })();
+  </script>
 </body>
 </html>
-
-
